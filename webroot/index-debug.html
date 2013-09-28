@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+        <title>FreeRDP WebConnect: offline</title>
+        <meta name="robots" content="nofollow" />
+        <meta name="description" content="A HTM5 based RDP client">
+        <meta name="viewport" content="width=device-width height=device-height user-scalable=no">
+        <meta name="cursor-event-mode" content="native">
+        <meta name="touch-event-mode" content="pure-with-mouse-conversion">
+        <link rel="stylesheet" href="css/style-debug.css">
+        <link rel="stylesheet" href="css/vkb-debug.css">
+        <script src="js/modernizr-debug.js"></script>
+        <script src="js/mootools-debug.js"></script>
+        <script src="js/simpletabs-debug.js"></script>
+        <script src="js/wsgate-debug.js"></script>
+        <script src="js/vkb-debug.js"></script>
+        <script language="javascript" type="text/javascript">
+            var wsBase = "ws://localhost:4455";
+            var RIMtablet = navigator.appVersion && (-1 != navigator.appVersion.indexOf('RIM Tablet'));
+            var mhx = 100;
+            var mhy = 100;
+            var dragX = 0;
+            var dragY = 0;
+            var inDrag = false;
+            var rdp = null;
+            var vkbd = null;
+            function RDPrun() {
+                var wsUri = wsBase
+                    + '?host=' + encodeURIComponent($('rdphost').value.trim())
+                    + '&user=' + encodeURIComponent($('rdpuser').value.trim())
+                    + '&pass=' + encodeURIComponent($('rdppass').value.toBase64())
+                    + '&perf=' + $('perf').value.trim()
+                    + '&fntlm=' + $('fntlm').value.trim()
+                    + '&nowallp=' + ($('nowallp').checked ? '1' : '0')
+                    + '&nowdrag=' + ($('nowdrag').checked ? '1' : '0')
+                    + '&nomani=' + ($('nomani').checked ? '1' : '0')
+                    + '&notheme=' + ($('notheme').checked ? '1' : '0')
+                    + '&nonla=' + ($('nonla').checked ? '1' : '0')
+                    + '&notls=' + ($('notls').checked ? '1' : '0')
+                    + '&dtsize=' + $('screen').width + 'x' + $('screen').height
+                    ;
+                rdp = new wsgate.RDP(wsUri, $('screen'), !RIMtablet, RIMtablet, vkbd);
+                rdp.addEvent('alert', function(msg) {
+                        alert(msg);
+                        });
+                rdp.addEvent('connected', function() {
+                        document.title = "FreeRDP WebConnect: connected to " +
+                        $('rdphost').value.trim();
+                        button = $("rdpconnect");
+                        button.removeEvents();
+                        window.removeEvent('resize', OnDesktopSize);
+                        /* button.value = 'Disconnect';
+                        button.addEvent('click', rdp.Disconnect.bind(rdp)); */
+
+                        });
+                rdp.addEvent('disconnected', function() {
+                        showDialog(true);
+                        button = $("rdpconnect");
+                        button.removeEvents();
+                        button.value = 'Connect';
+                        button.addEvent('click', RDPrun);
+                        OnDesktopSize();
+                        window.addEvent('resize', OnDesktopSize);
+                        });
+                rdp.addEvent('mouserelease', ResetRdpMouseFlags);
+                rdp.addEvent('touch2', function() {
+                    ShowMouseHelper($('mousehelper').hasClass('invisible'));
+                });
+                rdp.addEvent('touch3', function() {
+                    vkbd.toggle();
+                });
+                rdp.addEvent('touch4', function() {
+                    if (confirm('Really disconnect?')) {
+                        rdp.Disconnect();
+                    }
+                });
+                showDialog(false);
+                rdp.Run();
+            }
+            function SetRdpMouseFlags() {
+                var mf = {
+                    'r': $('rclick').checked,
+                    'm': $('mclick').checked,
+                    'a': $('aclick').checked,
+                    's': $('sclick').checked,
+                    'c': $('cclick').checked,
+                };
+                rdp.SetArtificialMouseFlags(mf);
+            }
+            function ResetRdpMouseFlags() {
+                $('rclick').checked = false;
+                $('mclick').checked = false;
+                $('aclick').checked = false;
+                $('sclick').checked = false;
+                $('cclick').checked = false;
+                rdp.SetArtificialMouseFlags(null);
+            }
+            function ShowMouseHelper(show) {
+                var mh = $('mousehelper');
+                inDrag = false;
+                if (show) {
+                    mh.setStyles({'position':'absolute','top':mhy,'left':mhx,'z-index':999});
+                    mh.addEvent('mousedown',DragStart);
+                    $('rclick').addEvent('change', SetRdpMouseFlags);
+                    $('mclick').addEvent('change', SetRdpMouseFlags);
+                    $('aclick').addEvent('change', SetRdpMouseFlags);
+                    $('sclick').addEvent('change', SetRdpMouseFlags);
+                    $('cclick').addEvent('change', SetRdpMouseFlags);
+                    mh.removeClass('invisible');
+                } else {
+                    mh.removeEvents();
+                    mh.addClass('invisible');
+                    $('rclick').removeEvents();
+                    $('mclick').removeEvents();
+                    $('aclick').removeEvents();
+                    $('sclick').removeEvents();
+                    $('cclick').removeEvents();
+                }
+            }
+            function DragStart(evt) {
+                var mh = $('mousehelper');
+                if (!mh.hasClass('invisible')) {
+                    inDrag = true;
+                    dragX = evt.page.x;
+                    dragY = evt.page.y;
+                    window.addEvent('mouseup',DragEnd);
+                    window.addEvent('touchmove',DragMove);
+                }
+            }
+            function DragEnd(evt) {
+                inDrag = false;
+                var mh = $('mousehelper');
+                window.removeEvent('touchmove',DragMove);
+                window.removeEvent('mouseup',DragEnd);
+            }
+            function DragMove(evt) {
+                if (inDrag) {
+                    var dx = evt.page.x - dragX;
+                    var dy = evt.page.y - dragY;
+                    dragX = evt.page.x;
+                    dragY = evt.page.y;
+                    var mh = $('mousehelper');
+                    if (!mh.hasClass('invisible')) {
+                        mhx += dx;
+                        mhy += dy;
+                        mh.setStyles({'top':mhy,'left':mhx});
+                    }
+                }
+            }
+            function DrawLogo() {
+                    var logo = new Element('img', {'src': 'FreeRDP_Logo.png'});
+                    logo.addEvent('load', function() {
+                            var iw = this.width;
+                            var ih = this.height;
+                            var scale = ($('screen').height - 20) / ih;
+                            $('screen').getContext('2d').drawImage(this, 10, 10, Math.round(iw * scale), Math.round(ih * scale));
+                    }.bind(logo));
+            }
+            function ResizeCanvas(sz) {
+                var w, h;
+                if (sz == 'auto') {
+                    w = window.getCoordinates().width;
+                    h = window.getCoordinates().height;
+                    if (RIMtablet) {
+                        // Toplevel bar not removable
+                        h -= 31;
+                    }
+                    if (w % 2) {
+                        w -= 1;
+                    }
+                } else {
+                    var sza = sz.split('x');
+                    var w = sza[0];
+                    var h = sza[1];
+                }
+                $('screen').width = w;
+                $('screen').height = h;
+            }
+            function OnDesktopSize() {
+                ResizeCanvas($('dtsize').value);
+                DrawLogo();
+            }
+            function showDialog(show) {
+                if (show) {
+                    ShowMouseHelper(false);
+                    var dlg = $('maindialog');
+                    var x = Math.round((window.getCoordinates().width - dlg.getCoordinates().width) / 2) + 'px';
+                    var y = Math.round((window.getCoordinates().height - dlg.getCoordinates().height) / 2) + 'px';
+                    DrawLogo();
+                    dlg.setStyles({
+                            'position': 'absolute',
+                            'top': y,
+                            'left': x,
+                            'z-index': 999
+                            }).removeClass('invisible');
+                } else {
+                    $('maindialog').addClass('invisible');
+                }
+            }
+            window.addEvent('domready', function() {
+                    $('dtsize').addEvent('change', OnDesktopSize);
+                    var tabs = new SimpleTabs('rdpdialog',{selector:'h4'});
+                    OnDesktopSize();
+                    if (RIMtablet) {
+                        // Set default performance flags to modem
+                        $('perf').value = '2';
+                    }
+                    window.addEvent('resize', OnDesktopSize);
+                    // Special handling of webkit nightly builds
+                    var webkitOK = false;
+                    var wkVA = RegExp("( AppleWebKit/)([^ ]+)").exec(navigator.userAgent);
+                    if (wkVA && (wkVA.length > 2)) {
+                        if (wkVA[2].indexOf('+') != -1) {
+                            webkitOK = true;
+                        }
+                    }
+                    var wsOK = RIMtablet || webkitOK ||
+                        (Browser.firefox && (Browser.version >= 11.0)) ||
+                        (Browser.chrome && (Browser.version >= 17)) ||
+                        (Browser.safari && (Browser.version >= 6)) ||
+                        (Browser.ie && (Browser.version >= 10.0));
+                    if (wsOK) {
+                        $('rdpconnect').addEvent('click', RDPrun);
+                        showDialog(true);
+                        vkbd = new wsgate.vkbd({
+                            version:false,
+                            sizeswitch:false,
+                            numpadtoggle:false
+                        });
+                    } else {
+                        alert('Sorry!\nYour Browser (' + Browser.name + ' ' + Browser.version
+                                + ') does not yet\nprovide the required HTML5 features '
+                                + 'for this application.\n');
+                    }
+            });
+        </script>
+    </head>
+    <body>
+        <canvas id="screen" width="640px" height="480px">
+        <p class="error">Sorry, It looks as though your browser does not support the canvas tag.</p>
+        </canvas>
+        <noscript><p class="error">Please enable JavaScript.</p></noscript>
+        <table width="400px" id="maindialog" class="invisible">
+            <tr>
+                <td>
+                    <div id="rdpdialog" class="dialog">
+                        <h4 title="Main connection settings">General</h4>
+                        <div>
+                            <form>
+                                <fieldset>
+                                    <legend>Session parameters</legend>
+                                    <table>
+                                        <tr>
+                                            <td class="key"><label for="host">Hostname:</label></td>
+                                            <td><input id="rdphost" type="text" name="host" value="%COOKIE_LASTHOST%" %DISABLED_HOST%/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="user">User:</label></td>
+                                            <td><input id="rdpuser" type="text" name="user" value="%COOKIE_LASTUSER%" %DISABLED_USER% /></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="pass">Password:</label></td>
+                                            <td><input id="rdppass" type="password" name="pass" value="%COOKIE_LASTPASS%" autocomplete="off" %DISABLED_PASS% /></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="dtsize">Desktop size:</label></td>
+                                            <td>
+                                                <select id="dtsize" name="dtsize">
+                                                    <option>640x480</option>
+                                                    <option>800x600</option>
+                                                    <option>1024x768</option>
+                                                    <option>1280x960</option>
+                                                    <option>1280x1024</option>
+                                                    <option value="auto" selected>Available Area</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="buttons" colspan="2"><input id="rdpconnect" type="button" value="Connect" /></td>
+                                        </tr>
+                                    </table>
+                                </fieldset>
+                            </form>
+                        </div>
+                        <h4 title="Advanced session parameters">Advanced</h4>
+                        <div>
+                            <form>
+                                <fieldset>
+                                    <legend>Advanced session parameters</legend>
+                                    <table>
+                                        <tr>
+                                            <td class="key"><label for="port">Port:</label></td>
+                                            <td><input id="port" name="port" type="text" size="6" maxlen="5" value="%DEFAULT_PORT%" %DISABLED_PORT% /></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="perf">Performance:</label></td>
+                                            <td>
+                                                <select id="perf" name="perf" %DISABLED_PERF%>
+                                                    <option value="0" %SELECTED_PERF0%>LAN</option>
+                                                    <option value="1" %SELECTED_PERF1%>Broadband</option>
+                                                    <option value="2" %SELECTED_PERF2%>Modem</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="nowallp">Disable wallpaper:</label></td>
+                                            <td><input id="nowallp" name="nowallp" type="checkbox" %CHECKED_NOWALLP%/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="nowdrag">Disable full window drag:</label></td>
+                                            <td><input id="nowdrag" name="nowdrag" type="checkbox" %CHECKED_NOWDRAG%/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="nomani">Disable menu animation:</label></td>
+                                            <td><input id="nomani" name="nomani" type="checkbox" %CHECKED_NOMANI%/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="notheme">Disable theming:</label></td>
+                                            <td><input id="notheme" name="notheme" type="checkbox" %CHECKED_NOTHEME%/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="nonla">Disable network level authentication:</label></td>
+                                            <td><input id="nonla" name="nonla" type="checkbox" %CHECKED_NONLA%/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="notls">Disable TLS:</label></td>
+                                            <td><input id="notls" name="notls" type="checkbox" %CHECKED_NOTLS%/></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="key"><label for="fntlm">Force NTLM auth:</label></td>
+                                            <td>
+                                                <select id="fntlm" name="fntlm" %DISABLED_FNTLM%>
+                                                    <option value="0" %SELECTED_FNTLM0%>disabled</option>
+                                                    <option value="1" %SELECTED_FNTLM1%>NTLM v1</option>
+                                                    <option value="2" %SELECTED_FNTLM2%>NTLM v2</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </fieldset>
+                            </form>
+                            <br />
+                        </div>
+                        <h4 title="Show version info">About</h4>
+                        <div class="about">
+                            <h2>FreeRDP WebConnect</h2>
+                            Version %VERSION%
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <table width="240px" id="mousehelper" class="invisible">
+            <tr>
+                <td>
+                    <div id="mousedialog" class="dialog">
+                        <form>
+                            <fieldset>
+                                <legend>Click properties</legend>
+                                <table>
+                                    <tr>
+                                        <td class="key"><label class="big" for="rclick">Right</label></td>
+                                        <td><input id="rclick" name="rclick" type="checkbox" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="key"><label class="big" for="mclick">Middle</label></td>
+                                        <td><input id="mclick" name="mclick" type="checkbox" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="key"><label class="big" for="aclick">Alt</label></td>
+                                        <td><input id="aclick" name="aclick" type="checkbox" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="key"><label class="big" for="sclick">Shift</label></td>
+                                        <td><input id="sclick" name="sclick" type="checkbox" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="key"><label class="big" for="cclick">Control</label></td>
+                                        <td><input id="cclick" name="cclick" type="checkbox" /></td>
+                                    </tr>
+                                </table>
+                            </fieldset>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html> 

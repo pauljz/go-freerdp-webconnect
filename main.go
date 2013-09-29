@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"strconv"
+	"runtime"
 )
 
 var (
@@ -66,6 +67,8 @@ func initSocket(ws *websocket.Conn) {
 
 func main() {
 	flag.Parse()
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	http.Handle("/", websocket.Handler(initSocket))
 	fmt.Printf("http://localhost:%d/\n", 4455)

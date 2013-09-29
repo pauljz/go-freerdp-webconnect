@@ -5,9 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"strings"
-	"strconv"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 )
 
 func getResolution(ws *websocket.Conn) (width int64, height int64) {
-	request := ws.Request();
+	request := ws.Request()
 	dtsize := request.FormValue("dtsize")
 
 	if !strings.Contains(dtsize, "x") {
@@ -45,6 +45,16 @@ func getResolution(ws *websocket.Conn) (width int64, height int64) {
 	return width, height
 }
 
+func processSendQ(ws *websocket.Conn, sendq chan []byte) {
+	for {
+		buf := <-sendq
+		err := websocket.Message.Send(ws, buf)
+		if err != nil {
+			panic("ListenAndServe: " + err.Error())
+		}
+	}
+}
+
 func initSocket(ws *websocket.Conn) {
 	sendq := make(chan []byte, 100)
 	recvq := make(chan []byte, 5)
@@ -61,12 +71,13 @@ func initSocket(ws *websocket.Conn) {
 	}
 
 	go rdpconnect(sendq, recvq, settings)
+	go processSendQ(ws, sendq)
 
+	read := make([]byte, 1024, 1024)
 	for {
-		buf := <-sendq
-		err := websocket.Message.Send(ws, buf)
+		_, err := ws.Read(read)
 		if err != nil {
-			panic("ListenAndServe: " + err.Error())
+			recvq <- []byte("1")
 		}
 	}
 }

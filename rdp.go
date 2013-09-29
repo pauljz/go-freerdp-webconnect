@@ -203,31 +203,39 @@ func rdpconnect(sendq chan []byte, recvq chan []byte, settings *rdpConnectionSet
 	mainEventLoop := true
 
 	for mainEventLoop {
-		e := int(C.freerdp_error_info(instance))
-		if e != 0 {
-			switch e {
-			case 1:
-			case 2:
-			case 7:
-			case 9:
-				// Manual disconnections and such
-				mainEventLoop = false
-				break
-			case 5:
-				// Another user connected
-				break
-			default:
-				// Unknown error?
-				break
-			}
-		}
-		if int(C.freerdp_shall_disconnect(instance)) != 0 {
+		select {
+		case <- recvq:
+			fmt.Println("Disconnecting (websocket error)")
 			mainEventLoop = false
+		default:
+			e := int(C.freerdp_error_info(instance))
+			if e != 0 {
+				switch e {
+				case 1:
+				case 2:
+				case 7:
+				case 9:
+					// Manual disconnections and such
+					fmt.Println("Disconnecting (manual)")
+					mainEventLoop = false
+					break
+				case 5:
+					// Another user connected
+					break
+				default:
+					// Unknown error?
+					break
+				}
+			}
+			if int(C.freerdp_shall_disconnect(instance)) != 0 {
+				fmt.Println("Disconnecting (RDC said so)")
+				mainEventLoop = false
+			}
+			if mainEventLoop {
+				C.freerdp_check_fds(instance)
+			}
+			C.usleep(1000)
 		}
-		if mainEventLoop {
-			C.freerdp_check_fds(instance)
-		}
-		C.usleep(1000)
 	}
 	C.freerdp_free(instance)
 }

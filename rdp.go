@@ -38,13 +38,13 @@ static void cbPrimaryMultiOpaqueRect(rdpContext* context, MULTI_OPAQUE_RECT_ORDE
 }
 
 static void cbBeginPaint(rdpContext* context) {
-	beginPaint(context);
+	//beginPaint(context);
 }
 static void cbEndPaint(rdpContext* context) {
-	endPaint(context);
+	//endPaint(context);
 }
 static void cbSetBounds(rdpContext* context, rdpBounds* bounds) {
-	setBounds(context, bounds);
+	//setBounds(context, bounds);
 }
 static void cbBitmapUpdate(rdpContext* context, BITMAP_UPDATE* bitmap) {
 	bitmapUpdate(context, bitmap);
@@ -418,8 +418,13 @@ func preConnect(instance *C.freerdp) C.boolean {
 	settings.port = C.uint32(3389)
 	settings.ignore_certificate = C.boolean(1)
 
-	settings.performance_flags = C.PERF_FLAG_NONE
-	settings.connection_type = C.CONNECTION_TYPE_LAN
+	settings.performance_flags =
+		C.PERF_DISABLE_WALLPAPER |
+		C.PERF_DISABLE_THEMING |
+		C.PERF_DISABLE_MENUANIMATIONS |
+		C.PERF_DISABLE_FULLWINDOWDRAG
+
+	settings.connection_type = C.CONNECTION_TYPE_BROADBAND_HIGH
 
 	settings.rfx_codec = C.boolean(0)
 	settings.fastpath_output = C.boolean(1)

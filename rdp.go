@@ -204,7 +204,7 @@ func rdpconnect(sendq chan []byte, recvq chan []byte, settings *rdpConnectionSet
 
 	for mainEventLoop {
 		select {
-		case <- recvq:
+		case <-recvq:
 			fmt.Println("Disconnecting (websocket error)")
 			mainEventLoop = false
 		default:
@@ -418,11 +418,7 @@ func preConnect(instance *C.freerdp) C.boolean {
 	settings.port = C.uint32(3389)
 	settings.ignore_certificate = C.boolean(1)
 
-	settings.performance_flags =
-		C.PERF_DISABLE_WALLPAPER |
-		C.PERF_DISABLE_THEMING |
-		C.PERF_DISABLE_MENUANIMATIONS |
-		C.PERF_DISABLE_FULLWINDOWDRAG
+	settings.performance_flags = (C.PERF_DISABLE_WALLPAPER | C.PERF_DISABLE_THEMING | C.PERF_DISABLE_MENUANIMATIONS | C.PERF_DISABLE_FULLWINDOWDRAG)
 
 	settings.connection_type = C.CONNECTION_TYPE_BROADBAND_HIGH
 

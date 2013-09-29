@@ -317,12 +317,12 @@ func primaryMultiOpaqueRect(rawContext *C.rdpContext, moro *C.MULTI_OPAQUE_RECT_
 
 	buf := new(bytes.Buffer)
 	binary.Write(buf, binary.LittleEndian, WSOP_SC_MULTI_OPAQUERECT)
-	binary.Write(buf, binary.LittleEndian, color)
-	binary.Write(buf, binary.LittleEndian, moro.numRectangles)
+	binary.Write(buf, binary.LittleEndian, int32(color))
+	binary.Write(buf, binary.LittleEndian, int32(moro.numRectangles))
 
 	var r *C.DELTA_RECT
 	var i int
-	for i = 1; i < int(moro.numRectangles); i++ {
+	for i = 1; i <= int(moro.numRectangles); i++ {
 		r = C.nextMultiOpaqueRectangle(moro, C.int(i))
 		binary.Write(buf, binary.LittleEndian, r)
 	}

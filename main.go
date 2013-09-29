@@ -19,21 +19,27 @@ var (
 func getResolution(ws *websocket.Conn) (width int64, height int64) {
 	request := ws.Request();
 	dtsize := request.FormValue("dtsize")
-	sizeparts := strings.Split(dtsize, "x")
 
-	width, _ = strconv.ParseInt(sizeparts[0], 10, 32)
-	height, _ = strconv.ParseInt(sizeparts[1], 10, 32)
+	if !strings.Contains(dtsize, "x") {
+		width = 800
+		height = 600
+	} else {
+		sizeparts := strings.Split(dtsize, "x")
 
-	if width < 400 {
-		height = 400
-	} else if width > 1920 {
-		width = 1920
-	}
+		width, _ = strconv.ParseInt(sizeparts[0], 10, 32)
+		height, _ = strconv.ParseInt(sizeparts[1], 10, 32)
 
-	if height < 300 {
-		height = 300
-	} else if height > 1080 {
-		height = 1080
+		if width < 400 {
+			width = 400
+		} else if width > 1920 {
+			width = 1920
+		}
+
+		if height < 300 {
+			height = 300
+		} else if height > 1080 {
+			height = 1080
+		}
 	}
 
 	return width, height
